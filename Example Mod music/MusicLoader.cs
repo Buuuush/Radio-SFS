@@ -6,26 +6,19 @@ using UnityEngine;
 
 namespace CustomMusic
 {
-    // Recherche les fichiers audio personnalisés dans le dossier de la scène.
-    // Cette classe ne démarre pas la lecture : elle transforme simplement les
-    // fichiers trouvés en objets MusicTrack compris par SFS.Audio.
+    // Recherche les fichiers audio personnalisés d'une scène et les convertit
+    // en MusicTrack. Cette classe ne démarre pas la lecture.
     public static class MusicLoader
     {
-        // Dossier racine contenant les sous-dossiers Home_PC, Build_PC et
-        // World_PC. Main.modFolder est initialisé avant le premier appel dans
-        // le cycle normal de chargement du mod.
+        // Racine contenant les sous-dossiers des différentes scènes.
         private static readonly string MusicBasePath = Path.Combine(Main.modFolder, "Music");
 
-        // Formats que UnityWebRequestMultimedia et GetAudioType savent traiter
-        // dans TrackPlayer.
+        // Extensions reconnues par le lecteur personnalisé.
         private static readonly string[] SupportedExt = { ".mp3", ".wav", ".ogg", ".aiff" };
 
-        // Charge toutes les pistes compatibles d'un dossier de scène.
-        //
-        // Le chemin complet est placé dans clipName volontairement. Pour une
-        // piste native, clipName est un identifiant de ressource SFS ; pour
-        // une piste personnalisée, un chemin de fichier permet à TrackPlayer
-        // de reconnaître le fichier et de déclencher son chargement local.
+        // Charge les fichiers audio compatibles du dossier de la scène.
+        // Le chemin complet est conservé dans clipName : TrackPlayer l'utilise
+        // comme marqueur pour déclencher le chargement local.
         public static List<MusicTrack> LoadForScene(string sceneName)
         {
             var path = Path.Combine(MusicBasePath, sceneName);
@@ -44,12 +37,10 @@ namespace CustomMusic
         }
     }
 
-    // MonoBehaviour minimal utilisé uniquement pour héberger des coroutines.
-    // L'objet est conservé entre les scènes afin que les opérations réseau ou
-    // de chargement ne soient pas interrompues par un changement de scène.
+    // MonoBehaviour persistant utilisé uniquement pour héberger les coroutines.
     public class CoroutineRunner : MonoBehaviour
     {
-        // Instance Unity unique du runner.
+        // Instance Unity unique du gestionnaire.
         private static CoroutineRunner instance;
 
         // Retourne l'instance existante ou la crée si nécessaire.

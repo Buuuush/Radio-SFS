@@ -7,20 +7,15 @@ using UnityEngine;
 
 namespace CustomMusic
 {
-    // Remplace le contenu des playlists SFS par une combinaison de pistes
-    // natives et de pistes personnalisées.
+    // Construit la playlist finale utilisée par SFS.
     //
-    // L'injection est séparée du démarrage de la lecture : cette classe décide
-    // quelles pistes doivent exister dans la playlist, tandis que TrackPlayer
-    // décide comment les lire.
+    // Cette classe décide quelles pistes doivent figurer dans la playlist.
+    // TrackPlayer s'occupe ensuite de choisir et de lire la piste courante.
     public static class MusicInjector
     {
-        // Reconstruit la playlist d'un lecteur donné.
-        //
-        // Les pistes personnalisées déjà présentes sont d'abord retirées afin
-        // d'éviter les doublons. Si les réglages autorisent la musique native,
-        // une copie propre du cache vanilla est concaténée aux nouvelles
-        // pistes. Sinon, seules les pistes du dossier Music sont conservées.
+        // Retire les anciennes pistes personnalisées, puis combine le cache
+        // des pistes natives avec les fichiers personnalisés si la configuration
+        // autorise la musique vanilla.
         private static void Inject(MusicPlaylistPlayer player, string sceneName)
         {
             if (!player || !player.playlist)
@@ -29,9 +24,8 @@ namespace CustomMusic
             MusicPlaylist playlist = player.playlist;
             var customTracks = MusicLoader.LoadForScene(sceneName);
 
-            // Retire les anciennes pistes personnalisées. File.Exists permet
-            // de distinguer une piste locale d'un identifiant de ressource
-            // utilisé par la musique native de SFS.
+            // Un chemin de fichier existant identifie une piste personnalisée.
+            // Les autres entrées sont conservées comme pistes natives.
             playlist.tracks = playlist.tracks
                 .Where(t => !File.Exists(t.clipName)) // keep vanilla only
                 .ToList();
@@ -46,16 +40,15 @@ namespace CustomMusic
                 playlist.tracks = customTracks;
             }
 
-            // Force le prochain choix de piste à repartir d'un état neutre.
-            // currentTrack est privé dans SFS, d'où l'utilisation de la
-            // réflexion.
+            // currentTrack est privé dans SFS. Le remettre à -1 force le
+            // lecteur à choisir une nouvelle piste après la reconstruction.
             typeof(MusicPlaylistPlayer).GetField("currentTrack", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?.SetValue(player, -1);
         }
 
-        // Attend l'apparition du MusicPlaylistPlayer, puis injecte la playlist.
-        // Une attente est nécessaire car l'événement de scène peut survenir
-        // avant que les objets audio de SFS ne soient créés.
+        // Attend que SFS ait créé son MusicPlaylistPlayer avant d'injecter la
+        // playlist. L'attente est nécessaire car l'événement de scène peut
+        // survenir avant les objets audio.
         public static IEnumerator InjectAfterSceneLoad(string sceneName)
         {
             Debug.Log($"[CustomMusicMod] Waiting for MusicPlaylistPlayer in scene: {sceneName}");
@@ -73,8 +66,8 @@ namespace CustomMusic
                 yield break;
             }
 
-            // Empêche une seconde injection lorsque la scène a déjà été
-            // traitée et contient encore au moins une piste personnalisée.
+            // Évite de traiter deux fois une playlist qui contient déjà une
+            // piste personnalisée.
             if (player.playlist.tracks.Count > 0 &&
                 player.playlist.tracks.Any(t => File.Exists(t.clipName)))
             {
@@ -88,9 +81,8 @@ namespace CustomMusic
             Debug.Log($"[CustomMusicMod] Final injected playlist: {player.playlist.tracks.Count} tracks");
         }
 
-        // Retourne le réglage correspondant à une scène donnée.
-        // Les scènes inconnues conservent la musique native par défaut afin de
-        // ne pas modifier accidentellement un autre système audio de SFS.
+        // Retourne le réglage de conservation des pistes natives pour une scène.
+        // Une scène inconnue conserve la musique native par sécurité.
         public static bool ShouldIncludeVanilla(string sceneName)
         {
             return sceneName switch
@@ -102,8 +94,8 @@ namespace CustomMusic
             };
         }
 
-        // Reconstruit immédiatement les lecteurs concernés lorsqu'un toggle
-        // du menu est modifié.
+        // Reconstruit immédiatement les lecteurs concernés après la modification
+        // d'un interrupteur dans le menu de configuration.
         public static void OnSceneToggleChanged(string sceneName)
         {
             var players = Object.FindObjectsOfType<MusicPlaylistPlayer>();

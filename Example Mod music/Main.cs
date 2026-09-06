@@ -14,31 +14,25 @@ namespace CustomMusic
     // Point d'entrée principal du mod Custom Music.
     //
     // Cette classe ne lit pas directement les fichiers audio. Elle prépare
-    // l'environnement du mod :
-    //   1. création des dossiers de musique ;
-    //   2. chargement de la configuration ;
-    //   3. installation des patches Harmony ;
-    //   4. lancement d'un gestionnaire de coroutines persistant ;
-    //   5. réinjection des playlists après chaque chargement de scène.
+    // l'environnement du mod : création des dossiers, chargement de la
+    // configuration, installation des patches Harmony et réinjection des
+    // playlists après chaque chargement de scène.
     //
-    // Le mod implémente IUpdatable parce que ModLoader attend cette capacité
-    // pour certains mods, même si aucune logique de mise à jour n'est
-    // nécessaire ici.
+    // IUpdatable est conservé pour respecter le contrat attendu par
+    // ModLoader, même si ce mod n'a pas besoin d'une boucle Update dédiée.
     [UsedImplicitly]
     public class Main : Mod, IUpdatable
     {
-        // Instance Harmony conservée pendant toute la durée du jeu.
-        // Elle n'est pas utilisée directement après PatchAll(), mais garder
-        // une référence permet de conserver clairement la durée de vie du
-        // système de patches.
+        // Référence vers le gestionnaire Harmony utilisé pour installer les
+        // patches du mod pendant toute la durée de la partie.
         private static Harmony patcher;
 
         // Chemin du dossier du mod, converti en FolderPath pour utiliser les
         // helpers de fichiers fournis par SFS.
         public static FolderPath modFolder;
 
-        // Noms des dossiers correspondant aux scènes dans lesquelles SFS
-        // possède ses playlists musicales.
+        // Sous-dossiers correspondant aux scènes dont la musique peut être
+        // personnalisée.
         private static readonly string[] SceneFolders =
         {
             "Home_PC",
@@ -46,12 +40,10 @@ namespace CustomMusic
             "World_PC"
         };
 
-        // Coroutine d'injection actuellement active. Elle est arrêtée avant
-        // d'en démarrer une nouvelle afin d'éviter que deux recherches de
-        // MusicPlaylistPlayer se déroulent en parallèle.
+        // Coroutine d'injection active. Elle est arrêtée lorsqu'une nouvelle
+        // scène est chargée afin d'éviter deux injections concurrentes.
         private Coroutine activeInjectionCoroutine;
 
-        // Métadonnées affichées par ModLoader.
         public override string ModNameID => "CustomMusic";
         public override string DisplayName => "Custom Music";
         public override string Author => "NeptuneSky";
@@ -59,9 +51,7 @@ namespace CustomMusic
         public override string ModVersion => "v2.0.2";
         public override string Description => "Simple mod that lets you import custom music.";
 
-        // Fichier utilisé par le système de mise à jour automatique du mod.
-        // La clé est l'URL distante et la valeur est le chemin local où la
-        // nouvelle DLL doit être enregistrée.
+        // URL et destination utilisées par le système de mise à jour du mod.
         public Dictionary<string, FilePath> UpdatableFiles => new()
         {
             {
@@ -70,17 +60,8 @@ namespace CustomMusic
             }
         };
 
-        // Crée l'arborescence attendue par le mod :
-        //
-        // Music/
-        //   Home_PC/
-        //   Build_PC/
-        //   World_PC/
-        //
-        // Directory.CreateDirectory() est utilisé seulement si le dossier
-        // n'existe pas déjà. L'opération est protégée par try/catch afin qu'un
-        // problème de droits ou de disque ne fasse pas quitter le jeu sans
-        // laisser de message explicite dans le log Unity.
+        // Crée l'arborescence Music/Home_PC, Music/Build_PC et
+        // Music/World_PC si elle n'existe pas encore.
         private void EnsureDirectoriesExist()
         {
             var musicDir = Path.Combine(ModFolder, "Music");
@@ -100,33 +81,26 @@ namespace CustomMusic
             }
         }
 
-        // Early_Load est exécutée assez tôt pour installer les patches avant
-        // que les playlists musicales du jeu ne commencent à être utilisées.
+        // Méthode appelée tôt par ModLoader afin que les patches soient
+        // installés avant l'utilisation des playlists de SFS.
         public override void Early_Load()
         {
-            // ModFolder est fourni par la classe de base Mod. On le convertit
-            // en FolderPath une seule fois afin que les autres classes puissent
-            // construire leurs chemins relatifs.
+            // Initialise le chemin partagé par les autres classes du mod.
             modFolder = new FolderPath(ModFolder);
             EnsureDirectoriesExist();
 
-            // Charge les valeurs persistantes et construit le menu de
-            // configuration du mod.
+            // Charge les réglages et crée la page de configuration de SFS.
             Config.Load();
 
-            // Installe les méthodes Harmony déclarées dans Patches.cs.
+            // Installe les patches déclarés dans Patches.cs.
             patcher = new Harmony("mods.NeptuneSky.CustomMusic");
             patcher.PatchAll();
 
-            // Unity ne permet de démarrer une coroutine que depuis un
-            // MonoBehaviour. CoroutineRunner fournit donc un objet Unity
-            // persistant qui pourra lancer le chargement des pistes audio.
+            // Crée le MonoBehaviour qui pourra héberger les coroutines Unity.
             CoroutineRunner.Create();
 
-            // Une playlist peut être recréée ou réinitialisée lors d'un
-            // changement de scène. On attend donc chaque événement, on arrête
-            // l'injection précédente, puis on recherche la nouvelle playlist
-            // dans une coroutine dédiée.
+            // Après chaque changement de scène, attend la création du lecteur
+            // musical puis reconstruit sa playlist.
             SceneHelper.OnSceneLoaded += scene =>
             {
                 if (activeInjectionCoroutine != null)

@@ -8,26 +8,23 @@ using UnityEngine;
 
 namespace CustomMusic
 {
-    // Remplace le démarrage de lecture de SFS.
-    // Le Prefix retourne false lorsque TrackPlayer a pris en charge la lecture,
-    // ce qui empêche Harmony d'exécuter ensuite la méthode vanilla.
+    // Remplace le démarrage standard d'une playlist SFS.
+    // Lorsque TrackPlayer réussit à lancer une piste, le retour false empêche
+    // Harmony d'exécuter ensuite la méthode originale.
     [HarmonyPatch(typeof(MusicPlaylistPlayer), "StartPlaying")]
     public static class Patch_StartPlaying
     {
         [UsedImplicitly]
         private static bool Prefix(MusicPlaylistPlayer __instance, float fadeTime)
         {
-            // Demande à notre lecteur de choisir une piste. Le résultat false
-            // indique que la lecture personnalisée a réussi et que la logique
-            // originale doit être ignorée.
+            // Choisit une piste native ou personnalisée selon la playlist.
             return !TrackPlayer.TryPlayTrack(__instance, null, fadeTime);
         }
     }
 
-    // Surveille chaque mise à jour du lecteur musical après l'exécution de la
-    // logique SFS. Ce patch sert surtout à récupérer les transitions de fin de
-    // piste et à empêcher une piste native de continuer lorsque l'utilisateur
-    // les a désactivées pour la scène actuelle.
+    // Surveille le lecteur après chaque mise à jour Unity. Ce patch permet de
+    // récupérer les transitions et d'empêcher une piste vanilla lorsque celle-ci
+    // est désactivée pour la scène courante.
     [HarmonyPatch(typeof(MusicPlaylistPlayer), "Update")]
     public static class Patch_MusicPlaylistPlayer_Update
     {
@@ -42,8 +39,7 @@ namespace CustomMusic
 
             var currentTrack = ReflectionUtils.GetPrivateField<int>(__instance, "currentTrack");
 
-            // Si l'index interne est invalide, tente de sélectionner une piste
-            // valide avant que le lecteur ne reste bloqué sans musique.
+            // Répare un index invalide en sélectionnant une piste valide.
             if (currentTrack < 0 || currentTrack >= playlist.tracks.Count)
             {
                 TrackPlayer.TryPlayTrack(__instance, null, 1f);
@@ -54,8 +50,8 @@ namespace CustomMusic
             var isCustom = File.Exists(track.clipName);
             var allowVanilla = MusicInjector.ShouldIncludeVanilla(__instance.gameObject.scene.name);
 
-            // Si la piste actuelle est native mais que la configuration les
-            // interdit, passe immédiatement à une piste personnalisée.
+            // Si la piste actuelle est native mais interdite par la config,
+            // passe immédiatement à une piste personnalisée.
             if (!isCustom && !allowVanilla) TrackPlayer.TryPlayTrack(__instance, null, 1f);
         }
     }

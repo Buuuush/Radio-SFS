@@ -9,28 +9,21 @@ using Random = System.Random;
 
 namespace CustomMusic
 {
-    // Contrôle la sélection et la lecture des pistes musicales.
+    // Sélectionne et lit les pistes musicales.
     //
-    // Les pistes natives sont chargées comme ressources Unity de SFS. Les
-    // pistes personnalisées sont chargées depuis le disque avec
-    // UnityWebRequestMultimedia. Cette différence est importante : un chemin
-    // de fichier complet dans MusicTrack.clipName sert aussi de marqueur pour
-    // reconnaître une piste personnalisée.
+    // Une piste native est chargée comme ressource Unity de SFS. Une piste
+    // personnalisée est un fichier local chargé avec UnityWebRequestMultimedia.
+    // La présence d'un chemin de fichier complet permet de distinguer les deux.
     public static class TrackPlayer
     {
-        // Empêche deux appels imbriqués de changer la piste simultanément.
-        // Cette protection évite notamment que Update et un changement de scène
-        // modifient currentTrack au même moment.
+        // Empêche deux appels imbriqués de modifier la piste simultanément.
         private static bool isSwitchingTracks;
 
-        // Générateur utilisé pour choisir une piste aléatoire sans créer un
-        // nouvel objet à chaque appel.
+        // Générateur utilisé pour le choix aléatoire des pistes.
         private static readonly Random Rng = new();
 
-        // Sélectionne puis démarre une piste.
-        // requestedIndex permet de demander une piste précise ; lorsqu'il est
-        // null, GetNextValidTrack choisit la prochaine piste autorisée.
-        // La méthode renvoie false lorsqu'aucune lecture ne peut commencer.
+        // Sélectionne et démarre une piste. Si requestedIndex vaut null, la
+        // méthode choisit automatiquement une piste valide.
         public static bool TryPlayTrack(MusicPlaylistPlayer player, int? requestedIndex, float fadeTime)
         {
             if (isSwitchingTracks) return false;
@@ -44,7 +37,8 @@ namespace CustomMusic
                 return false;
             }
 
-            // Lit l'index privé de la piste précédente avant de le remplacer.
+            // Conserve l'ancienne piste afin d'éviter de la reprendre
+            // immédiatement lorsque plusieurs choix sont possibles.
             var lastTrack = GetCurrentTrack(player);
             var index = requestedIndex ?? GetNextValidTrack(player, lastTrack);
 
@@ -55,8 +49,7 @@ namespace CustomMusic
             }
 
             MusicTrack track = playlist.tracks[index];
-            // Un fichier existant est une piste locale ; sinon SFS doit charger
-            // clipName comme une ressource audio native.
+            // Un fichier présent sur le disque est une piste personnalisée.
             var isCustom = File.Exists(track.clipName);
 
 
@@ -72,18 +65,16 @@ namespace CustomMusic
             return true;
         }
 
-        // Construit la liste des pistes autorisées puis choisit un index.
-        // Les pistes natives sont filtrées lorsque l'utilisateur les a
-        // désactivées dans la configuration.
+        // Construit la liste des pistes autorisées, puis choisit l'index de la
+        // prochaine piste en respectant les réglages vanilla et le mode aléatoire.
         private static int GetNextValidTrack(MusicPlaylistPlayer player, int lastTrack)
         {
             MusicPlaylist playlist = player.playlist;
             var scene = player.gameObject.scene.name;
             var allowVanilla = MusicInjector.ShouldIncludeVanilla(scene);
 
-            // Construit une liste d'indices plutôt qu'une liste de copies de
-            // MusicTrack afin de conserver les objets déjà présents dans la
-            // playlist.
+            // Les indices sont conservés afin de réutiliser les MusicTrack
+            // déjà présents dans la playlist sans les copier.
             var validIndices = playlist.tracks
                 .Select((track, idx) => new { track, idx })
                 .Where(x => File.Exists(x.track.clipName) || allowVanilla)
@@ -98,9 +89,7 @@ namespace CustomMusic
                     return validIndices[0];
             }
 
-            // Au premier démarrage ou lorsqu'une piste demande PlayRandom,
-            // mélange les indices tout en évitant autant que possible de
-            // sélectionner immédiatement la même piste.
+            // Le premier démarrage et PlayRandom demandent un choix aléatoire.
             var doShuffle =
                 lastTrack == -1 || // first time playing
                 (lastTrack >= 0 &&
@@ -113,22 +102,19 @@ namespace CustomMusic
                     .OrderBy(_ => Rng.Next())
                     .First();
 
-            // Comportement normal : prend la première piste différente de la
-            // précédente. Le dernier retour garantit qu'une playlist valide
-            // d'une seule piste peut tout de même continuer à jouer.
+            // Sinon, prend la première piste différente de la précédente.
             var fallback = validIndices.FirstOrDefault(i => i != lastTrack);
             return fallback != -1 ? fallback : validIndices[0];
         }
 
-        // Modifie le champ privé currentTrack de SFS.
+        // Modifie le champ privé currentTrack utilisé par le lecteur SFS.
         private static void SetCurrentTrack(MusicPlaylistPlayer player, int index)
         {
             typeof(MusicPlaylistPlayer).GetField("currentTrack", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?.SetValue(player, index);
         }
 
-        // Lit le champ privé currentTrack de SFS. -1 est utilisé si le champ
-        // n'est pas trouvé ou si aucune piste n'est actuellement sélectionnée.
+        // Lit currentTrack. -1 signifie qu'aucune piste n'est sélectionnée.
         private static int GetCurrentTrack(MusicPlaylistPlayer player)
         {
             return (int)(typeof(MusicPlaylistPlayer)
@@ -144,13 +130,12 @@ namespace CustomMusic
             source.clip = Resources.Load<AudioClip>(track.clipName);
             source.pitch = track.pitch;
 
-            // Initialise les champs internes du fondu comme le ferait le code
-            // vanilla : démarrage silencieux, puis augmentation progressive.
+            // Initialise les champs internes du fondu comme le code vanilla.
             ReflectionUtils.SetPrivateField(player, "fadeTime", fadeTime);
             ReflectionUtils.SetPrivateField(player, "targetFadeVolume", 1f);
             ReflectionUtils.SetPrivateField(player, "currentFadeVolume", 0f); // start silent and let vanilla fade it in
 
-            // Met immédiatement à jour le volume avant de lancer la source.
+            // Met à jour l'état du volume avant de lancer la source audio.
             MethodInfo updateVolume = typeof(MusicPlaylistPlayer)
                 .GetMethod("UpdateVolume", BindingFlags.NonPublic | BindingFlags.Instance);
             updateVolume?.Invoke(player, null);
@@ -158,8 +143,7 @@ namespace CustomMusic
             source.Play();
         }
 
-        // Passe à une autre piste lorsqu'un fichier personnalisé ne peut pas
-        // être chargé ou n'est pas lisible.
+        // Essaie une autre piste lorsqu'un fichier personnalisé est illisible.
         private static void SkipToNextTrack(MusicPlaylistPlayer player)
         {
             var current = GetCurrentTrack(player);
@@ -168,9 +152,8 @@ namespace CustomMusic
             if (next != -1 && next != current) TryPlayTrack(player, next, 1f);
         }
 
-        // Charge et joue une piste locale de manière asynchrone.
-        // Le chargement dans une coroutine évite de bloquer le thread principal
-        // pendant que Unity lit le fichier depuis le disque.
+        // Charge une piste locale dans une coroutine afin de ne pas bloquer le
+        // thread principal pendant l'accès au fichier.
         private static IEnumerator PlayCustomTrack(MusicPlaylistPlayer player, MusicTrack track, float fadeTime)
         {
             var url = "file://" + track.clipName.Replace("\\", "/");
@@ -189,9 +172,8 @@ namespace CustomMusic
 
             AudioClip clip = DownloadHandlerAudioClip.GetContent(www);
 
-            // Vérifie que Unity a réellement décodé le fichier avant de le
-            // donner à AudioSource. Un fichier trouvé sur le disque peut tout
-            // de même être corrompu ou utiliser un format non supporté.
+            // Un fichier existant peut être corrompu ou utiliser un format non
+            // décodable : vérifie donc le résultat fourni par Unity.
             if (!clip || clip.loadState != AudioDataLoadState.Loaded || clip.length <= 0)
             {
                 Debug.LogError($"[CustomMusicMod] Clip load failed or unsupported format: {track.clipName}");
@@ -214,8 +196,7 @@ namespace CustomMusic
             source.Play();
         }
 
-        // Traduit l'extension du fichier en valeur AudioType attendue par
-        // UnityWebRequestMultimedia.GetAudioClip.
+        // Convertit une extension de fichier en AudioType Unity.
         private static AudioType GetAudioType(string ext)
         {
             return ext.ToLowerInvariant() switch

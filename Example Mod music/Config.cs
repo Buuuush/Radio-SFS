@@ -9,22 +9,20 @@ using Type = SFS.UI.ModGUI.Type;
 
 namespace CustomMusic
 {
-    // Gestionnaire de configuration du mod.
+    // Gestionnaire des réglages du mod.
     //
-    // ModSettings fournit à SFS le mécanisme de sérialisation des réglages.
-    // Les trois valeurs de SettingsData déterminent si les musiques natives
-    // doivent être conservées dans chaque scène. Les fichiers personnalisés
-    // restent gérés par MusicInjector.
+    // ModSettings prend en charge la sérialisation dans Config.txt. Les trois
+    // valeurs de SettingsData indiquent si les pistes natives de SFS doivent
+    // rester disponibles dans chacune des scènes concernées.
     public class Config : ModSettings<Config.SettingsData>
     {
-        // Instance globale utilisée par MusicInjector et par le menu.
+        // Instance globale utilisée par le menu et MusicInjector.
         private static Config main;
 
-        // Fichier local dans lequel ModSettings enregistre les réglages.
+        // Emplacement du fichier de configuration persistant.
         protected override FilePath SettingsFile => Main.modFolder.ExtendToFile("Config.txt");
 
-        // Initialise la configuration puis ajoute une page au menu de
-        // configuration de SFS.
+        // Initialise les réglages et ajoute la page Custom Music au menu SFS.
         public static void Load()
         {
             main = new Config();
@@ -35,12 +33,9 @@ namespace CustomMusic
             });
         }
 
-        // Construit visuellement la page de configuration.
-        //
-        // Chaque bouton inverse une valeur Bool_Local puis demande à
-        // MusicInjector de reconstruire immédiatement la playlist de la scène
-        // concernée. L'utilisateur n'a donc pas besoin de redémarrer la scène
-        // pour voir le changement.
+        // Construit les trois interrupteurs du menu.
+        // Chaque changement est appliqué immédiatement à la playlist de la
+        // scène correspondante, sans nécessiter de redémarrage.
         private static GameObject MenuItems(Transform parent, Vector2Int size)
         {
             Box box = CreateBox(parent, size.x, size.y);
@@ -72,17 +67,15 @@ namespace CustomMusic
             return box.gameObject;
         }
 
-        // Demande la sauvegarde lorsque l'application est en train de quitter.
-        // onChange est fourni par ModSettings et déclenche sa sérialisation.
+        // Demande à ModSettings de sauvegarder les valeurs lors de la fermeture
+        // du jeu.
         protected override void RegisterOnVariableChange(Action onChange)
         {
             Application.quitting += onChange;
         }
 
-        // Données réellement persistées par ModSettings.
-        // Les valeurs par défaut conservent les musiques natives dans les
-        // trois scènes, ce qui évite de rendre le jeu silencieux avant toute
-        // personnalisation de l'utilisateur.
+        // Valeurs réellement enregistrées par ModSettings.
+        // Les valeurs par défaut conservent le comportement musical vanilla.
         public class SettingsData
         {
             public Bool_Local buildScene = new() { Value = true };

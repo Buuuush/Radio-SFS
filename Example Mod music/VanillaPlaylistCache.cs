@@ -5,22 +5,19 @@ using SFS.Audio;
 
 namespace CustomMusic
 {
-    // Conserve une copie des playlists natives avant toute modification.
-    // Sans ce cache, une réinjection après changement de réglage ne pourrait
-    // pas restaurer proprement les pistes vanilla supprimées auparavant.
+    // Conserve une copie des playlists natives avant modification.
+    // Ce cache permet de restaurer les pistes vanilla lorsqu'un réglage change.
     public static class VanillaPlaylistCache
     {
-        // Une playlist Unity sert de clé : chaque lecteur possède ainsi son
-        // propre ensemble de pistes natives originales.
+        // Chaque playlist possède son propre cache de pistes natives.
         private static readonly Dictionary<MusicPlaylist, List<MusicTrack>> Cache = new();
 
-        // Enregistre la playlist une seule fois et ignore déjà les pistes
-        // personnalisées éventuelles.
+        // Enregistre une playlist uniquement lors de sa première rencontre.
         public static void CacheIfNeeded(MusicPlaylist playlist)
         {
             if (Cache.ContainsKey(playlist)) return;
-            // Seules les pistes qui ne correspondent pas à un fichier local
-            // sont considérées comme vanilla.
+            // Les pistes correspondant à un fichier local sont exclues du
+            // cache, car elles appartiennent au mod et non au jeu de base.
             var vanillaTracks = playlist.tracks
                 .Where(t => !File.Exists(t.clipName))
                 .Select(CloneTrack)
@@ -29,15 +26,15 @@ namespace CustomMusic
             Cache[playlist] = vanillaTracks;
         }
 
-        // Retourne le cache associé à la playlist ou une liste vide si aucun
-        // cache n'a encore été créé.
+        // Retourne le cache de la playlist, ou une liste vide si elle n'a pas
+        // encore été enregistrée.
         public static List<MusicTrack> GetCachedVanilla(MusicPlaylist playlist)
         {
             return Cache.TryGetValue(playlist, out var tracks) ? tracks : new List<MusicTrack>();
         }
 
-        // Crée une nouvelle instance pour éviter de partager une référence
-        // modifiable avec la playlist originale.
+        // Crée une copie indépendante d'une piste pour éviter de modifier
+        // l'objet original détenu par SFS.
         private static MusicTrack CloneTrack(MusicTrack track)
         {
             return new MusicTrack

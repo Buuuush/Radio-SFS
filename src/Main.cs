@@ -6,6 +6,8 @@
 3. Create the radio player
 4. Close the radio properly when the game closes
 
+FR : Charger le mod, charger l'URL, créer le lecteur radio, arrêter proprement la radio à la fin du jeu
+
 Help :
 https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/types/classes
 https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/
@@ -27,12 +29,15 @@ namespace RadioSFS
     public class Main : Mod
 {
     public static Main Instance { get; private set; }
+
+    private static Harmony patcher;
+    
     public Main()
     {
         Instance = this;
     }
 
-    public override string ModNameID => "radio.sfs";
+    public override string ModNameID => "Radio-SFS";
     public override string DisplayName => "Radio-SFS";
     public override string Author => "Gogogadgetozebra";
     public override string MinimumGameVersionNecessary => "1.6.00.16";

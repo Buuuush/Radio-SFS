@@ -3,7 +3,8 @@
 
 1. Display the radio URL field
 2. Display the button to save the radio URL
-3. Do not add volume controls because the user manages the volume with the PC volume
+
+FR : Afficher le champ d'URL, afficher un bouton de save
 
 Help :
 https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/index.html

@@ -5,6 +5,8 @@
 2. Save the radio URL when the save button is clicked
 3. Load the saved radio URL when the game starts again
 
+FR : Retenir URL, charger l'URL au démarrage du jeu, sauvegarder l'URL
+
 Help :
 https://docs.unity3d.com/ScriptReference/PlayerPrefs.html
 

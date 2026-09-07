@@ -6,6 +6,8 @@
 3. Detect connection outages
 4. Try to reconnect to the radio
 
+FR : Se connecter, télécharger le stream, reconnexion automatique
+
 Help :
 https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpclient
 https://learn.microsoft.com/en-us/dotnet/api/system.io.stream

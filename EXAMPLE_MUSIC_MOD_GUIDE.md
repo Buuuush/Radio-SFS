@@ -373,15 +373,15 @@ Lis cette liste dans l'ordre. Ne passe a l'etape suivante que lorsque le test in
 - [x] Revoir les conditions `if` et `else`.
 - [x] Revoir `switch` pour traiter plusieurs etats.
 - [x] Revoir les boucles `foreach` et `while`.
-- [ ] Comprendre `null` et les verifications `objet == null`.
-- [ ] Comprendre `?.` et `??`.
-- [ ] Comprendre `List<T>` et `Dictionary<TKey, TValue>`.
-- [ ] Comprendre `public`, `private`, `static` et `readonly`.
-- [ ] Comprendre la difference entre une classe `static` et une classe instanciee avec `new`.
-- [ ] Comprendre une propriete comme `public string Url { get; set; }`.
-- [ ] Comprendre `try`, `catch` et `finally`.
-- [ ] Comprendre ce que retourne une methode : `void`, `bool`, une liste ou un objet.
-- [ ] Comprendre les delegues, `Action` et les callbacks.
+- [x] Comprendre `null` et les verifications `objet == null`.
+- [x] Comprendre `?.` et `??`.
+- [x] Comprendre `List<T>` et `Dictionary<TKey, TValue>`.
+- [x] Comprendre `public`, `private`, `static` et `readonly`.
+- [x] Comprendre la difference entre une classe `static` et une classe instanciee avec `new`.
+- [x] Comprendre une propriete comme `public string Url { get; set; }`.
+- [x] Comprendre `try`, `catch` et `finally`.
+- [x] Comprendre ce que retourne une methode : `void`, `bool`, une liste ou un objet.
+- [x] Comprendre les delegues, `Action` et les callbacks.
 
 **Termine quand :** tu peux lire une methode simple du dossier d'exemple et expliquer chaque ligne avec tes propres mots.
 
